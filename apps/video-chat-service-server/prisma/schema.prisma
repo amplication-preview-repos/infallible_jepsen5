@@ -1,0 +1,71 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DB_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Room {
+  breakoutRooms BreakoutRoom[]
+  createdAt     DateTime       @default(now())
+  host          String?
+  id            String         @id @default(cuid())
+  isPrivate     Boolean?
+  messages      Message[]
+  name          String?
+  polls         Poll[]
+  updatedAt     DateTime       @updatedAt
+}
+
+model Poll {
+  createdAt DateTime @default(now())
+  id        String   @id @default(cuid())
+  options   Option[]
+  question  String?
+  room      Room?    @relation(fields: [roomId], references: [id])
+  roomId    String?
+  updatedAt DateTime @updatedAt
+}
+
+model BreakoutRoom {
+  createdAt DateTime @default(now())
+  id        String   @id @default(cuid())
+  name      String?
+  room      Room?    @relation(fields: [roomId], references: [id])
+  roomId    String?
+  updatedAt DateTime @updatedAt
+}
+
+model Option {
+  createdAt DateTime @default(now())
+  id        String   @id @default(cuid())
+  poll      Poll?    @relation(fields: [pollId], references: [id])
+  pollId    String?
+  text      String?
+  updatedAt DateTime @updatedAt
+}
+
+model Message {
+  content   String?
+  createdAt DateTime  @default(now())
+  id        String    @id @default(cuid())
+  room      Room?     @relation(fields: [roomId], references: [id])
+  roomId    String?
+  sender    String?
+  timestamp DateTime?
+  updatedAt DateTime  @updatedAt
+}
+
+model User {
+  createdAt DateTime @default(now())
+  email     String?  @unique
+  firstName String?
+  id        String   @id @default(cuid())
+  lastName  String?
+  password  String
+  roles     Json
+  updatedAt DateTime @updatedAt
+  username  String   @unique
+}
