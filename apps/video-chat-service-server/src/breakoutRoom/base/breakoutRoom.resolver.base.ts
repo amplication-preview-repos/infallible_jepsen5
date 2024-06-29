@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { BreakoutRoom } from "./BreakoutRoom";
 import { BreakoutRoomCountArgs } from "./BreakoutRoomCountArgs";
 import { BreakoutRoomFindManyArgs } from "./BreakoutRoomFindManyArgs";
@@ -22,10 +28,20 @@ import { UpdateBreakoutRoomArgs } from "./UpdateBreakoutRoomArgs";
 import { DeleteBreakoutRoomArgs } from "./DeleteBreakoutRoomArgs";
 import { Room } from "../../room/base/Room";
 import { BreakoutRoomService } from "../breakoutRoom.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => BreakoutRoom)
 export class BreakoutRoomResolverBase {
-  constructor(protected readonly service: BreakoutRoomService) {}
+  constructor(
+    protected readonly service: BreakoutRoomService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "BreakoutRoom",
+    action: "read",
+    possession: "any",
+  })
   async _breakoutRoomsMeta(
     @graphql.Args() args: BreakoutRoomCountArgs
   ): Promise<MetaQueryPayload> {
@@ -35,14 +51,26 @@ export class BreakoutRoomResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [BreakoutRoom])
+  @nestAccessControl.UseRoles({
+    resource: "BreakoutRoom",
+    action: "read",
+    possession: "any",
+  })
   async breakoutRooms(
     @graphql.Args() args: BreakoutRoomFindManyArgs
   ): Promise<BreakoutRoom[]> {
     return this.service.breakoutRooms(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => BreakoutRoom, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "BreakoutRoom",
+    action: "read",
+    possession: "own",
+  })
   async breakoutRoom(
     @graphql.Args() args: BreakoutRoomFindUniqueArgs
   ): Promise<BreakoutRoom | null> {
@@ -53,7 +81,13 @@ export class BreakoutRoomResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => BreakoutRoom)
+  @nestAccessControl.UseRoles({
+    resource: "BreakoutRoom",
+    action: "create",
+    possession: "any",
+  })
   async createBreakoutRoom(
     @graphql.Args() args: CreateBreakoutRoomArgs
   ): Promise<BreakoutRoom> {
@@ -71,7 +105,13 @@ export class BreakoutRoomResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => BreakoutRoom)
+  @nestAccessControl.UseRoles({
+    resource: "BreakoutRoom",
+    action: "update",
+    possession: "any",
+  })
   async updateBreakoutRoom(
     @graphql.Args() args: UpdateBreakoutRoomArgs
   ): Promise<BreakoutRoom | null> {
@@ -99,6 +139,11 @@ export class BreakoutRoomResolverBase {
   }
 
   @graphql.Mutation(() => BreakoutRoom)
+  @nestAccessControl.UseRoles({
+    resource: "BreakoutRoom",
+    action: "delete",
+    possession: "any",
+  })
   async deleteBreakoutRoom(
     @graphql.Args() args: DeleteBreakoutRoomArgs
   ): Promise<BreakoutRoom | null> {
@@ -114,9 +159,15 @@ export class BreakoutRoomResolverBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => Room, {
     nullable: true,
     name: "room",
+  })
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "read",
+    possession: "any",
   })
   async getRoom(@graphql.Parent() parent: BreakoutRoom): Promise<Room | null> {
     const result = await this.service.getRoom(parent.id);

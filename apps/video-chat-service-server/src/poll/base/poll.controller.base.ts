@@ -16,7 +16,11 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { PollService } from "../poll.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { PollCreateInput } from "./PollCreateInput";
 import { Poll } from "./Poll";
 import { PollFindManyArgs } from "./PollFindManyArgs";
@@ -26,10 +30,24 @@ import { OptionFindManyArgs } from "../../option/base/OptionFindManyArgs";
 import { Option } from "../../option/base/Option";
 import { OptionWhereUniqueInput } from "../../option/base/OptionWhereUniqueInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class PollControllerBase {
-  constructor(protected readonly service: PollService) {}
+  constructor(
+    protected readonly service: PollService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Poll })
+  @nestAccessControl.UseRoles({
+    resource: "Poll",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async createPoll(@common.Body() data: PollCreateInput): Promise<Poll> {
     return await this.service.createPoll({
       data: {
@@ -57,9 +75,18 @@ export class PollControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Poll] })
   @ApiNestedQuery(PollFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Poll",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async polls(@common.Req() request: Request): Promise<Poll[]> {
     const args = plainToClass(PollFindManyArgs, request.query);
     return this.service.polls({
@@ -80,9 +107,18 @@ export class PollControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Poll })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Poll",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async poll(
     @common.Param() params: PollWhereUniqueInput
   ): Promise<Poll | null> {
@@ -110,9 +146,18 @@ export class PollControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Poll })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Poll",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async updatePoll(
     @common.Param() params: PollWhereUniqueInput,
     @common.Body() data: PollUpdateInput
@@ -156,6 +201,14 @@ export class PollControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Poll })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Poll",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deletePoll(
     @common.Param() params: PollWhereUniqueInput
   ): Promise<Poll | null> {
@@ -186,8 +239,14 @@ export class PollControllerBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/options")
   @ApiNestedQuery(OptionFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Option",
+    action: "read",
+    possession: "any",
+  })
   async findOptions(
     @common.Req() request: Request,
     @common.Param() params: PollWhereUniqueInput
@@ -218,6 +277,11 @@ export class PollControllerBase {
   }
 
   @common.Post("/:id/options")
+  @nestAccessControl.UseRoles({
+    resource: "Poll",
+    action: "update",
+    possession: "any",
+  })
   async connectOptions(
     @common.Param() params: PollWhereUniqueInput,
     @common.Body() body: OptionWhereUniqueInput[]
@@ -235,6 +299,11 @@ export class PollControllerBase {
   }
 
   @common.Patch("/:id/options")
+  @nestAccessControl.UseRoles({
+    resource: "Poll",
+    action: "update",
+    possession: "any",
+  })
   async updateOptions(
     @common.Param() params: PollWhereUniqueInput,
     @common.Body() body: OptionWhereUniqueInput[]
@@ -252,6 +321,11 @@ export class PollControllerBase {
   }
 
   @common.Delete("/:id/options")
+  @nestAccessControl.UseRoles({
+    resource: "Poll",
+    action: "update",
+    possession: "any",
+  })
   async disconnectOptions(
     @common.Param() params: PollWhereUniqueInput,
     @common.Body() body: OptionWhereUniqueInput[]

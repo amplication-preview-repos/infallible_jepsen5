@@ -16,17 +16,35 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { OptionService } from "../option.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { OptionCreateInput } from "./OptionCreateInput";
 import { Option } from "./Option";
 import { OptionFindManyArgs } from "./OptionFindManyArgs";
 import { OptionWhereUniqueInput } from "./OptionWhereUniqueInput";
 import { OptionUpdateInput } from "./OptionUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class OptionControllerBase {
-  constructor(protected readonly service: OptionService) {}
+  constructor(
+    protected readonly service: OptionService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Option })
+  @nestAccessControl.UseRoles({
+    resource: "Option",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async createOption(@common.Body() data: OptionCreateInput): Promise<Option> {
     return await this.service.createOption({
       data: {
@@ -54,9 +72,18 @@ export class OptionControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Option] })
   @ApiNestedQuery(OptionFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Option",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async options(@common.Req() request: Request): Promise<Option[]> {
     const args = plainToClass(OptionFindManyArgs, request.query);
     return this.service.options({
@@ -77,9 +104,18 @@ export class OptionControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Option })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Option",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async option(
     @common.Param() params: OptionWhereUniqueInput
   ): Promise<Option | null> {
@@ -107,9 +143,18 @@ export class OptionControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Option })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Option",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async updateOption(
     @common.Param() params: OptionWhereUniqueInput,
     @common.Body() data: OptionUpdateInput
@@ -153,6 +198,14 @@ export class OptionControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Option })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Option",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteOption(
     @common.Param() params: OptionWhereUniqueInput
   ): Promise<Option | null> {

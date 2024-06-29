@@ -16,7 +16,11 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { RoomService } from "../room.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { RoomCreateInput } from "./RoomCreateInput";
 import { Room } from "./Room";
 import { RoomFindManyArgs } from "./RoomFindManyArgs";
@@ -32,10 +36,24 @@ import { PollFindManyArgs } from "../../poll/base/PollFindManyArgs";
 import { Poll } from "../../poll/base/Poll";
 import { PollWhereUniqueInput } from "../../poll/base/PollWhereUniqueInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class RoomControllerBase {
-  constructor(protected readonly service: RoomService) {}
+  constructor(
+    protected readonly service: RoomService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Room })
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async createRoom(@common.Body() data: RoomCreateInput): Promise<Room> {
     return await this.service.createRoom({
       data: data,
@@ -50,9 +68,18 @@ export class RoomControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Room] })
   @ApiNestedQuery(RoomFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async rooms(@common.Req() request: Request): Promise<Room[]> {
     const args = plainToClass(RoomFindManyArgs, request.query);
     return this.service.rooms({
@@ -68,9 +95,18 @@ export class RoomControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Room })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async room(
     @common.Param() params: RoomWhereUniqueInput
   ): Promise<Room | null> {
@@ -93,9 +129,18 @@ export class RoomControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Room })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async updateRoom(
     @common.Param() params: RoomWhereUniqueInput,
     @common.Body() data: RoomUpdateInput
@@ -126,6 +171,14 @@ export class RoomControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Room })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteRoom(
     @common.Param() params: RoomWhereUniqueInput
   ): Promise<Room | null> {
@@ -151,8 +204,14 @@ export class RoomControllerBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/breakoutRooms")
   @ApiNestedQuery(BreakoutRoomFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "BreakoutRoom",
+    action: "read",
+    possession: "any",
+  })
   async findBreakoutRooms(
     @common.Req() request: Request,
     @common.Param() params: RoomWhereUniqueInput
@@ -183,6 +242,11 @@ export class RoomControllerBase {
   }
 
   @common.Post("/:id/breakoutRooms")
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "update",
+    possession: "any",
+  })
   async connectBreakoutRooms(
     @common.Param() params: RoomWhereUniqueInput,
     @common.Body() body: BreakoutRoomWhereUniqueInput[]
@@ -200,6 +264,11 @@ export class RoomControllerBase {
   }
 
   @common.Patch("/:id/breakoutRooms")
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "update",
+    possession: "any",
+  })
   async updateBreakoutRooms(
     @common.Param() params: RoomWhereUniqueInput,
     @common.Body() body: BreakoutRoomWhereUniqueInput[]
@@ -217,6 +286,11 @@ export class RoomControllerBase {
   }
 
   @common.Delete("/:id/breakoutRooms")
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "update",
+    possession: "any",
+  })
   async disconnectBreakoutRooms(
     @common.Param() params: RoomWhereUniqueInput,
     @common.Body() body: BreakoutRoomWhereUniqueInput[]
@@ -233,8 +307,14 @@ export class RoomControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/messages")
   @ApiNestedQuery(MessageFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Message",
+    action: "read",
+    possession: "any",
+  })
   async findMessages(
     @common.Req() request: Request,
     @common.Param() params: RoomWhereUniqueInput
@@ -267,6 +347,11 @@ export class RoomControllerBase {
   }
 
   @common.Post("/:id/messages")
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "update",
+    possession: "any",
+  })
   async connectMessages(
     @common.Param() params: RoomWhereUniqueInput,
     @common.Body() body: MessageWhereUniqueInput[]
@@ -284,6 +369,11 @@ export class RoomControllerBase {
   }
 
   @common.Patch("/:id/messages")
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "update",
+    possession: "any",
+  })
   async updateMessages(
     @common.Param() params: RoomWhereUniqueInput,
     @common.Body() body: MessageWhereUniqueInput[]
@@ -301,6 +391,11 @@ export class RoomControllerBase {
   }
 
   @common.Delete("/:id/messages")
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "update",
+    possession: "any",
+  })
   async disconnectMessages(
     @common.Param() params: RoomWhereUniqueInput,
     @common.Body() body: MessageWhereUniqueInput[]
@@ -317,8 +412,14 @@ export class RoomControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/polls")
   @ApiNestedQuery(PollFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Poll",
+    action: "read",
+    possession: "any",
+  })
   async findPolls(
     @common.Req() request: Request,
     @common.Param() params: RoomWhereUniqueInput
@@ -349,6 +450,11 @@ export class RoomControllerBase {
   }
 
   @common.Post("/:id/polls")
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "update",
+    possession: "any",
+  })
   async connectPolls(
     @common.Param() params: RoomWhereUniqueInput,
     @common.Body() body: PollWhereUniqueInput[]
@@ -366,6 +472,11 @@ export class RoomControllerBase {
   }
 
   @common.Patch("/:id/polls")
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "update",
+    possession: "any",
+  })
   async updatePolls(
     @common.Param() params: RoomWhereUniqueInput,
     @common.Body() body: PollWhereUniqueInput[]
@@ -383,6 +494,11 @@ export class RoomControllerBase {
   }
 
   @common.Delete("/:id/polls")
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "update",
+    possession: "any",
+  })
   async disconnectPolls(
     @common.Param() params: RoomWhereUniqueInput,
     @common.Body() body: PollWhereUniqueInput[]

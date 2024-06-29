@@ -16,17 +16,35 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { BreakoutRoomService } from "../breakoutRoom.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { BreakoutRoomCreateInput } from "./BreakoutRoomCreateInput";
 import { BreakoutRoom } from "./BreakoutRoom";
 import { BreakoutRoomFindManyArgs } from "./BreakoutRoomFindManyArgs";
 import { BreakoutRoomWhereUniqueInput } from "./BreakoutRoomWhereUniqueInput";
 import { BreakoutRoomUpdateInput } from "./BreakoutRoomUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class BreakoutRoomControllerBase {
-  constructor(protected readonly service: BreakoutRoomService) {}
+  constructor(
+    protected readonly service: BreakoutRoomService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: BreakoutRoom })
+  @nestAccessControl.UseRoles({
+    resource: "BreakoutRoom",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async createBreakoutRoom(
     @common.Body() data: BreakoutRoomCreateInput
   ): Promise<BreakoutRoom> {
@@ -56,9 +74,18 @@ export class BreakoutRoomControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [BreakoutRoom] })
   @ApiNestedQuery(BreakoutRoomFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "BreakoutRoom",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async breakoutRooms(@common.Req() request: Request): Promise<BreakoutRoom[]> {
     const args = plainToClass(BreakoutRoomFindManyArgs, request.query);
     return this.service.breakoutRooms({
@@ -79,9 +106,18 @@ export class BreakoutRoomControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: BreakoutRoom })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "BreakoutRoom",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async breakoutRoom(
     @common.Param() params: BreakoutRoomWhereUniqueInput
   ): Promise<BreakoutRoom | null> {
@@ -109,9 +145,18 @@ export class BreakoutRoomControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: BreakoutRoom })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "BreakoutRoom",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async updateBreakoutRoom(
     @common.Param() params: BreakoutRoomWhereUniqueInput,
     @common.Body() data: BreakoutRoomUpdateInput
@@ -155,6 +200,14 @@ export class BreakoutRoomControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: BreakoutRoom })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "BreakoutRoom",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteBreakoutRoom(
     @common.Param() params: BreakoutRoomWhereUniqueInput
   ): Promise<BreakoutRoom | null> {

@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { Room } from "./Room";
 import { RoomCountArgs } from "./RoomCountArgs";
 import { RoomFindManyArgs } from "./RoomFindManyArgs";
@@ -27,10 +33,20 @@ import { Message } from "../../message/base/Message";
 import { PollFindManyArgs } from "../../poll/base/PollFindManyArgs";
 import { Poll } from "../../poll/base/Poll";
 import { RoomService } from "../room.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => Room)
 export class RoomResolverBase {
-  constructor(protected readonly service: RoomService) {}
+  constructor(
+    protected readonly service: RoomService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "read",
+    possession: "any",
+  })
   async _roomsMeta(
     @graphql.Args() args: RoomCountArgs
   ): Promise<MetaQueryPayload> {
@@ -40,12 +56,24 @@ export class RoomResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [Room])
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "read",
+    possession: "any",
+  })
   async rooms(@graphql.Args() args: RoomFindManyArgs): Promise<Room[]> {
     return this.service.rooms(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => Room, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "read",
+    possession: "own",
+  })
   async room(@graphql.Args() args: RoomFindUniqueArgs): Promise<Room | null> {
     const result = await this.service.room(args);
     if (result === null) {
@@ -54,7 +82,13 @@ export class RoomResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Room)
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "create",
+    possession: "any",
+  })
   async createRoom(@graphql.Args() args: CreateRoomArgs): Promise<Room> {
     return await this.service.createRoom({
       ...args,
@@ -62,7 +96,13 @@ export class RoomResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Room)
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "update",
+    possession: "any",
+  })
   async updateRoom(@graphql.Args() args: UpdateRoomArgs): Promise<Room | null> {
     try {
       return await this.service.updateRoom({
@@ -80,6 +120,11 @@ export class RoomResolverBase {
   }
 
   @graphql.Mutation(() => Room)
+  @nestAccessControl.UseRoles({
+    resource: "Room",
+    action: "delete",
+    possession: "any",
+  })
   async deleteRoom(@graphql.Args() args: DeleteRoomArgs): Promise<Room | null> {
     try {
       return await this.service.deleteRoom(args);
@@ -93,7 +138,13 @@ export class RoomResolverBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => [BreakoutRoom], { name: "breakoutRooms" })
+  @nestAccessControl.UseRoles({
+    resource: "BreakoutRoom",
+    action: "read",
+    possession: "any",
+  })
   async findBreakoutRooms(
     @graphql.Parent() parent: Room,
     @graphql.Args() args: BreakoutRoomFindManyArgs
@@ -107,7 +158,13 @@ export class RoomResolverBase {
     return results;
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => [Message], { name: "messages" })
+  @nestAccessControl.UseRoles({
+    resource: "Message",
+    action: "read",
+    possession: "any",
+  })
   async findMessages(
     @graphql.Parent() parent: Room,
     @graphql.Args() args: MessageFindManyArgs
@@ -121,7 +178,13 @@ export class RoomResolverBase {
     return results;
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => [Poll], { name: "polls" })
+  @nestAccessControl.UseRoles({
+    resource: "Poll",
+    action: "read",
+    possession: "any",
+  })
   async findPolls(
     @graphql.Parent() parent: Room,
     @graphql.Args() args: PollFindManyArgs

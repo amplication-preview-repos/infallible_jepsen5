@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { Option } from "./Option";
 import { OptionCountArgs } from "./OptionCountArgs";
 import { OptionFindManyArgs } from "./OptionFindManyArgs";
@@ -22,10 +28,20 @@ import { UpdateOptionArgs } from "./UpdateOptionArgs";
 import { DeleteOptionArgs } from "./DeleteOptionArgs";
 import { Poll } from "../../poll/base/Poll";
 import { OptionService } from "../option.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => Option)
 export class OptionResolverBase {
-  constructor(protected readonly service: OptionService) {}
+  constructor(
+    protected readonly service: OptionService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "Option",
+    action: "read",
+    possession: "any",
+  })
   async _optionsMeta(
     @graphql.Args() args: OptionCountArgs
   ): Promise<MetaQueryPayload> {
@@ -35,12 +51,24 @@ export class OptionResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [Option])
+  @nestAccessControl.UseRoles({
+    resource: "Option",
+    action: "read",
+    possession: "any",
+  })
   async options(@graphql.Args() args: OptionFindManyArgs): Promise<Option[]> {
     return this.service.options(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => Option, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "Option",
+    action: "read",
+    possession: "own",
+  })
   async option(
     @graphql.Args() args: OptionFindUniqueArgs
   ): Promise<Option | null> {
@@ -51,7 +79,13 @@ export class OptionResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Option)
+  @nestAccessControl.UseRoles({
+    resource: "Option",
+    action: "create",
+    possession: "any",
+  })
   async createOption(@graphql.Args() args: CreateOptionArgs): Promise<Option> {
     return await this.service.createOption({
       ...args,
@@ -67,7 +101,13 @@ export class OptionResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Option)
+  @nestAccessControl.UseRoles({
+    resource: "Option",
+    action: "update",
+    possession: "any",
+  })
   async updateOption(
     @graphql.Args() args: UpdateOptionArgs
   ): Promise<Option | null> {
@@ -95,6 +135,11 @@ export class OptionResolverBase {
   }
 
   @graphql.Mutation(() => Option)
+  @nestAccessControl.UseRoles({
+    resource: "Option",
+    action: "delete",
+    possession: "any",
+  })
   async deleteOption(
     @graphql.Args() args: DeleteOptionArgs
   ): Promise<Option | null> {
@@ -110,9 +155,15 @@ export class OptionResolverBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => Poll, {
     nullable: true,
     name: "poll",
+  })
+  @nestAccessControl.UseRoles({
+    resource: "Poll",
+    action: "read",
+    possession: "any",
   })
   async getPoll(@graphql.Parent() parent: Option): Promise<Poll | null> {
     const result = await this.service.getPoll(parent.id);
